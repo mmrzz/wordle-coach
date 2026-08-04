@@ -34,6 +34,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", api.Health)
+	mux.HandleFunc("GET /api/words", api.NewWords(set).List)
 	mux.HandleFunc("POST /api/suggest", solve.Suggest)
 	mux.HandleFunc("POST /api/rate", solve.Rate)
 
