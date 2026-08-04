@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+import { ApiError, getJSON } from "./client";
 
 /** Shape of the /healthz response body. */
 type HealthResponse = { status: string };
@@ -10,19 +10,14 @@ export type HealthResult =
 
 export async function checkHealth(): Promise<HealthResult> {
 	try {
-		const res = await fetch(`${BASE_URL}/healthz`);
-
-		if (!res.ok) {
-			return { ok: false, error: `server returned ${res.status}` };
-		}
-
-		const data: HealthResponse = await res.json();
+		const data = await getJSON<HealthResponse>("/healthz");
 		return { ok: true, status: data.status };
 	} catch (err) {
-		// fetch rejects on network failure and on CORS-blocked responses.
+		// ApiError already covers network failures and CORS-blocked responses,
+		// which from the browser are indistinguishable from the server being down.
 		return {
 			ok: false,
-			error: err instanceof Error ? err.message : "request failed",
+			error: err instanceof ApiError || err instanceof Error ? err.message : "request failed",
 		};
 	}
 }
