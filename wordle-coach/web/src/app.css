@@ -1,0 +1,279 @@
+/*
+ * Palette, metrics and keyframes taken from the real game so the board looks
+ * and moves the same. Component-specific rules live in the components; this
+ * file holds only what has to be shared or global.
+ */
+
+:root {
+	/* Fixed brand colours, identical in both themes. */
+	--green: #6aaa64;
+	--darkened-green: #538d4e;
+	--yellow: #c9b458;
+	--darkened-yellow: #b59f3b;
+
+	/* Animation timings. anim.ts carries the same numbers for the JS side. */
+	--pop-ms: 100ms;
+	--flip-ms: 500ms;
+	--flip-half-ms: 250ms;
+	--shake-ms: 600ms;
+	--bounce-ms: 1000ms;
+
+	--header-height: 50px;
+	--keyboard-height: 200px;
+	/* Room reserved either side of the board for the score badges. */
+	--aside-width: 96px;
+
+	color-scheme: light dark;
+}
+
+/* Light, the game's default. */
+:root,
+:root[data-theme="light"] {
+	--fg: #1a1a1b;
+	--fg-muted: #787c7e;
+	--fg-faint: #a3a7a9;
+	--bg: #ffffff;
+	--bg-raised: #ffffff;
+	--border: #d3d6da;
+	--border-strong: #878a8c;
+	--divider: #d3d6da;
+
+	--tile-border-empty: #d3d6da;
+	--tile-border-filled: #878a8c;
+	--color-absent: #787c7e;
+	--color-present: var(--yellow);
+	--color-correct: var(--green);
+	--tile-text-evaluated: #ffffff;
+
+	--key-bg: #d3d6da;
+	--key-fg: #1a1a1b;
+
+	--overlay: rgba(255, 255, 255, 0.85);
+	--shadow: rgba(0, 0, 0, 0.18);
+	--toast-bg: #1a1a1b;
+	--toast-fg: #ffffff;
+}
+
+:root[data-theme="dark"] {
+	--fg: #d7dadc;
+	--fg-muted: #818384;
+	--fg-faint: #565758;
+	--bg: #121213;
+	--bg-raised: #1a1a1b;
+	--border: #3a3a3c;
+	--border-strong: #565758;
+	--divider: #3a3a3c;
+
+	--tile-border-empty: #3a3a3c;
+	--tile-border-filled: #565758;
+	--color-absent: #3a3a3c;
+	--color-present: var(--darkened-yellow);
+	--color-correct: var(--darkened-green);
+	--tile-text-evaluated: #ffffff;
+
+	--key-bg: #818384;
+	--key-fg: #d7dadc;
+
+	--overlay: rgba(0, 0, 0, 0.6);
+	--shadow: rgba(0, 0, 0, 0.5);
+	--toast-bg: #d7dadc;
+	--toast-fg: #1a1a1b;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme]) {
+		--fg: #d7dadc;
+		--fg-muted: #818384;
+		--fg-faint: #565758;
+		--bg: #121213;
+		--bg-raised: #1a1a1b;
+		--border: #3a3a3c;
+		--border-strong: #565758;
+		--divider: #3a3a3c;
+
+		--tile-border-empty: #3a3a3c;
+		--tile-border-filled: #565758;
+		--color-absent: #3a3a3c;
+		--color-present: var(--darkened-yellow);
+		--color-correct: var(--darkened-green);
+
+		--key-bg: #818384;
+		--key-fg: #d7dadc;
+
+		--overlay: rgba(0, 0, 0, 0.6);
+		--shadow: rgba(0, 0, 0, 0.5);
+		--toast-bg: #d7dadc;
+		--toast-fg: #1a1a1b;
+	}
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+}
+
+body {
+	background: var(--bg);
+	color: var(--fg);
+	font-family: "Clear Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	-webkit-font-smoothing: antialiased;
+	overflow: hidden;
+	overscroll-behavior: none;
+}
+
+#app {
+	height: 100%;
+}
+
+button {
+	font-family: inherit;
+	color: inherit;
+	border: none;
+	background: none;
+	padding: 0;
+	cursor: pointer;
+}
+
+/* A visible ring only for keyboard users, so mouse clicks stay clean. */
+:focus-visible {
+	outline: 2px solid var(--color-correct);
+	outline-offset: 2px;
+}
+
+/* Announced to screen readers, invisible on screen. */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+@media (max-width: 620px) {
+	:root {
+		--aside-width: 76px;
+	}
+}
+
+/* -- animations ---------------------------------------------------------- */
+
+@keyframes PopIn {
+	from {
+		transform: scale(0.8);
+		opacity: 0;
+	}
+	40% {
+		transform: scale(1.1);
+		opacity: 1;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+/*
+ * The turn: a half-rotation down and back. The colour is swapped from JS at
+ * the midpoint, when the tile is edge-on and the change cannot be seen.
+ */
+@keyframes Flip {
+	0% {
+		transform: rotateX(0deg);
+	}
+	50% {
+		transform: rotateX(-90deg);
+	}
+	100% {
+		transform: rotateX(0deg);
+	}
+}
+
+@keyframes Shake {
+	10%,
+	90% {
+		transform: translateX(-1px);
+	}
+	20%,
+	80% {
+		transform: translateX(2px);
+	}
+	30%,
+	50%,
+	70% {
+		transform: translateX(-4px);
+	}
+	40%,
+	60% {
+		transform: translateX(4px);
+	}
+}
+
+@keyframes Bounce {
+	0%,
+	20% {
+		transform: translateY(0);
+	}
+	40% {
+		transform: translateY(-30px);
+	}
+	50% {
+		transform: translateY(5px);
+	}
+	60% {
+		transform: translateY(-15px);
+	}
+	80% {
+		transform: translateY(2px);
+	}
+	100% {
+		transform: translateY(0);
+	}
+}
+
+@keyframes FadeUp {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes SlideUp {
+	from {
+		opacity: 0;
+		transform: translateY(12px) scale(0.98);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+/*
+ * Movement is decoration here: every state change is driven by JS state, not
+ * by an animation finishing, so switching the animations off changes nothing
+ * about how the app behaves.
+ */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 1ms !important;
+		animation-delay: 0ms !important;
+		transition-duration: 1ms !important;
+	}
+}
