@@ -18,6 +18,11 @@ func testEngine(t *testing.T) *Engine {
 	return New(set)
 }
 
+// easy is the default request: easy mode, Shannon entropy, n suggestions.
+func easy(n int) Options {
+	return Options{Mode: Easy, Beta: DefaultBeta, Limit: n}
+}
+
 // The answer must always survive the feedback it produced. This is the property
 // Filter rests on, so it is checked against every answer in the list rather
 // than a handful of examples.
@@ -87,7 +92,7 @@ func TestFilterNarrowsToTheAnswer(t *testing.T) {
 func TestSuggestOpensFromTheTable(t *testing.T) {
 	e := testEngine(t)
 
-	got, err := e.Suggest(nil, Easy, 5)
+	got, err := e.Suggest(nil, easy(5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +115,7 @@ func TestSuggestOpensFromTheTable(t *testing.T) {
 func TestOpenerTableMatchesData(t *testing.T) {
 	e := testEngine(t)
 
-	scored := e.scorePool(e.set.Allowed, e.set.Answers)
+	scored := e.scorePool(e.set.Allowed, e.set.Answers, DefaultBeta)
 	sortSuggestions(scored)
 
 	for i, want := range openerTable {
@@ -135,7 +140,7 @@ func TestSuggestOnASingleCandidate(t *testing.T) {
 		history = append(history, Turn{Guess: g, Pattern: GetPattern(g, answer)})
 	}
 
-	got, err := e.Suggest(history, Easy, 5)
+	got, err := e.Suggest(history, easy(5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +169,7 @@ func TestSuggestRejectsInconsistentHistory(t *testing.T) {
 		{Guess: "slate", Pattern: AllGreen},
 	}
 
-	_, err := e.Suggest(history, Easy, 5)
+	_, err := e.Suggest(history, easy(5))
 	if !errors.Is(err, ErrInconsistent) {
 		t.Fatalf("err = %v, want ErrInconsistent", err)
 	}
@@ -173,7 +178,7 @@ func TestSuggestRejectsInconsistentHistory(t *testing.T) {
 func TestSuggestRejectsUnknownWords(t *testing.T) {
 	e := testEngine(t)
 
-	_, err := e.Suggest([]Turn{{Guess: "zzzzz", Pattern: 0}}, Easy, 5)
+	_, err := e.Suggest([]Turn{{Guess: "zzzzz", Pattern: 0}}, easy(5))
 	if err == nil {
 		t.Fatal("want an error for a word outside the corpus")
 	}
@@ -232,7 +237,7 @@ func TestHardPoolReusesRevealedLetters(t *testing.T) {
 func TestRateGradesFromThePriorPosition(t *testing.T) {
 	e := testEngine(t)
 
-	got, err := e.Rate(nil, "crane", Easy)
+	got, err := e.Rate(nil, "crane", easy(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +266,7 @@ func TestRateGradesFromThePriorPosition(t *testing.T) {
 func TestRateTheBestWordRanksFirst(t *testing.T) {
 	e := testEngine(t)
 
-	got, err := e.Rate(nil, openerTable[0].Word, Easy)
+	got, err := e.Rate(nil, openerTable[0].Word, easy(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +297,7 @@ func TestSolvesEveryAnswer(t *testing.T) {
 		solved := 0
 
 		for turn := 1; turn <= maxTurns; turn++ {
-			res, err := e.Suggest(history, Easy, 1)
+			res, err := e.Suggest(history, easy(1))
 			if err != nil {
 				t.Fatalf("answer %q turn %d: %v", answer, turn, err)
 			}

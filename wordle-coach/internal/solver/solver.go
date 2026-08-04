@@ -33,6 +33,30 @@ type Turn struct {
 	Pattern Pattern
 }
 
+// Options configures one request. There is no useful zero value: Beta must be
+// set, so that forgetting it is an error rather than a silent rescoring.
+type Options struct {
+	Mode Mode
+	// Beta is the Rényi order, between MinBeta and MaxBeta. See score.go.
+	Beta float64
+	// Limit is how many suggestions to return. Ignored by Rate.
+	Limit int
+}
+
+// check validates the options and applies the one safe default.
+func (o Options) check() (Options, error) {
+	if o.Beta < MinBeta || o.Beta > MaxBeta {
+		return o, fmt.Errorf("solver: beta %g is outside %g..%g", o.Beta, MinBeta, MaxBeta)
+	}
+	if o.Mode != Easy && o.Mode != Hard {
+		return o, fmt.Errorf("solver: unknown mode %d", o.Mode)
+	}
+	if o.Limit < 1 {
+		o.Limit = 1
+	}
+	return o, nil
+}
+
 // Suggestion is one scored guess.
 type Suggestion struct {
 	Word string
@@ -114,21 +138,23 @@ func (e *Engine) Filter(history []Turn) []string {
 	return candidates
 }
 
-// Suggest returns the n best guesses given the feedback so far. An empty
-// history returns the precomputed openers, since with nothing yet known every
-// game opens from the same position.
-func (e *Engine) Suggest(history []Turn, mode Mode, n int) (Result, error) {
+// Suggest returns the best guesses given the feedback so far.
+func (e *Engine) Suggest(history []Turn, opts Options) (Result, error) {
+	opts, err := opts.check()
+	if err != nil {
+		return Result{}, err
+	}
 	if err := e.validate(history); err != nil {
 		return Result{}, err
 	}
-	if n < 1 {
-		n = 1
-	}
 
-	if len(history) == 0 {
+	// With nothing known every game opens from the same position, so the
+	// ranking is a constant and comes from the table. A moved slider is a
+	// different ranking, which has to be computed.
+	if len(history) == 0 && math.Abs(opts.Beta-DefaultBeta) < betaEpsilon {
 		return Result{
 			PossibleCount: len(e.set.Answers),
-			Suggestions:   openers(n),
+			Suggestions:   openers(opts.Limit),
 		}, nil
 	}
 
@@ -137,12 +163,12 @@ func (e *Engine) Suggest(history []Turn, mode Mode, n int) (Result, error) {
 		return Result{}, ErrInconsistent
 	}
 
-	scored := e.scorePool(e.pool(history, mode), candidates)
+	scored := e.scorePool(e.pool(history, opts.Mode), candidates, opts.Beta)
 	sortSuggestions(scored)
 
 	result := Result{
 		PossibleCount: len(candidates),
-		Suggestions:   scored[:min(n, len(scored))],
+		Suggestions:   scored[:min(opts.Limit, len(scored))],
 	}
 	if len(candidates) <= RemainingThreshold {
 		result.Remaining = candidates
@@ -152,7 +178,11 @@ func (e *Engine) Suggest(history []Turn, mode Mode, n int) (Result, error) {
 
 // Rate grades played from the position it was actually played, so history must
 // hold the turns before it and not the turn itself.
-func (e *Engine) Rate(history []Turn, played string, mode Mode) (Coach, error) {
+func (e *Engine) Rate(history []Turn, played string, opts Options) (Coach, error) {
+	opts, err := opts.check()
+	if err != nil {
+		return Coach{}, err
+	}
 	if err := e.validate(history); err != nil {
 		return Coach{}, err
 	}
@@ -165,8 +195,7 @@ func (e *Engine) Rate(history []Turn, played string, mode Mode) (Coach, error) {
 		return Coach{}, ErrInconsistent
 	}
 
-	pool := e.pool(history, mode)
-	scored := e.scorePool(pool, candidates)
+	scored := e.scorePool(e.pool(history, opts.Mode), candidates, opts.Beta)
 	sortSuggestions(scored)
 
 	var play Suggestion
@@ -274,7 +303,7 @@ word:
 // scorePool buckets candidates by the pattern each pool word would produce and
 // collapses each histogram into both scores. The work splits cleanly across
 // cores because every pool word is independent.
-func (e *Engine) scorePool(pool, candidates []string) []Suggestion {
+func (e *Engine) scorePool(pool, candidates []string, beta float64) []Suggestion {
 	inCandidates := make(map[string]struct{}, len(candidates))
 	for _, w := range candidates {
 		inCandidates[w] = struct{}{}
@@ -304,17 +333,7 @@ func (e *Engine) scorePool(pool, candidates []string) []Suggestion {
 					counts[GetPattern(guess, answer)]++
 				}
 
-				// Both scores come off the same histogram in one pass, so the
-				// engine stays neutral about which one the UI prefers.
-				bits, expRemaining := 0.0, 0.0
-				for _, n := range counts {
-					if n == 0 {
-						continue
-					}
-					p := float64(n) / total
-					bits -= p * math.Log2(p)
-					expRemaining += p * float64(n)
-				}
+				bits, expRemaining := collapse(&counts, total, beta)
 
 				_, isCandidate := inCandidates[guess]
 				out[i] = Suggestion{

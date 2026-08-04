@@ -110,6 +110,33 @@ func decodeMode(s string) (solver.Mode, error) {
 	}
 }
 
+// decodeOptions builds the engine request. Beta arrives as a pointer so that an
+// absent field means "default" while an explicit 0 is still rejected as out of
+// range, rather than the two being indistinguishable.
+func decodeOptions(mode string, beta *float64, limit int) (solver.Options, error) {
+	m, err := decodeMode(mode)
+	if err != nil {
+		return solver.Options{}, err
+	}
+
+	b := solver.DefaultBeta
+	if beta != nil {
+		b = *beta
+	}
+	if b < solver.MinBeta || b > solver.MaxBeta {
+		return solver.Options{}, fmt.Errorf("beta %g is outside %g..%g", b, solver.MinBeta, solver.MaxBeta)
+	}
+
+	if limit < 1 {
+		limit = defaultSuggestions
+	}
+	if limit > maxSuggestions {
+		return solver.Options{}, fmt.Errorf("limit %d is above the maximum of %d", limit, maxSuggestions)
+	}
+
+	return solver.Options{Mode: m, Beta: b, Limit: limit}, nil
+}
+
 // toSuggestions converts engine results for the wire, rounding the scores to a
 // sane number of digits so the payload does not carry float noise.
 func toSuggestions(in []solver.Suggestion) []suggestionResponse {

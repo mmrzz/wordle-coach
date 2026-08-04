@@ -7,8 +7,13 @@ import (
 	"github.com/mmrzz/wordle-coach/internal/solver"
 )
 
-// defaultSuggestions is how many guesses a suggest request returns.
-const defaultSuggestions = 5
+const (
+	// defaultSuggestions is how many guesses a suggest request returns.
+	defaultSuggestions = 5
+	// maxSuggestions bounds the response so one request cannot ask for the
+	// whole pool.
+	maxSuggestions = 50
+)
 
 // Solver serves the suggest and rate endpoints.
 //
@@ -30,6 +35,8 @@ type suggestRequest struct {
 	History []turnRequest `json:"history"`
 	// Limit is how many suggestions to return, defaulting to 5.
 	Limit int `json:"limit"`
+	// Beta is the temperature slider. Absent means the default.
+	Beta *float64 `json:"beta"`
 }
 
 type suggestResponse struct {
@@ -48,9 +55,9 @@ func (s *Solver) Suggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode, err := decodeMode(req.Mode)
+	opts, err := decodeOptions(req.Mode, req.Beta, req.Limit)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "bad_mode", err)
+		respondError(w, http.StatusBadRequest, "bad_options", err)
 		return
 	}
 	history, err := decodeHistory(req.History)
@@ -59,12 +66,7 @@ func (s *Solver) Suggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit := req.Limit
-	if limit <= 0 {
-		limit = defaultSuggestions
-	}
-
-	result, err := s.engine.Suggest(history, mode, limit)
+	result, err := s.engine.Suggest(history, opts)
 	if err != nil {
 		writeSolverError(w, err)
 		return
@@ -83,6 +85,7 @@ type rateRequest struct {
 	// graded against what was known when it was played.
 	History []turnRequest `json:"history"`
 	Played  string        `json:"played"`
+	Beta    *float64      `json:"beta"`
 }
 
 type rateResponse struct {
@@ -107,9 +110,9 @@ func (s *Solver) Rate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode, err := decodeMode(req.Mode)
+	opts, err := decodeOptions(req.Mode, req.Beta, 1)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "bad_mode", err)
+		respondError(w, http.StatusBadRequest, "bad_options", err)
 		return
 	}
 	history, err := decodeHistory(req.History)
@@ -117,20 +120,17 @@ func (s *Solver) Rate(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusBadRequest, "bad_history", err)
 		return
 	}
-
 	played, err := decodeWord(req.Played)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "bad_word", err)
 		return
 	}
 
-	coach, err := s.engine.Rate(history, played, mode)
+	coach, err := s.engine.Rate(history, played, opts)
 	if err != nil {
 		writeSolverError(w, err)
 		return
 	}
-
-	best := toSuggestions([]solver.Suggestion{coach.Best})[0]
 
 	respond(w, http.StatusOK, rateResponse{
 		Played:             coach.Played,
@@ -138,7 +138,7 @@ func (s *Solver) Rate(w http.ResponseWriter, r *http.Request) {
 		PlayedExpRemaining: round(coach.PlayedExpRemaining, 4),
 		PlayedRank:         coach.PlayedRank,
 		Percentile:         round(coach.Percentile, 2),
-		Best:               best,
+		Best:               toSuggestions([]solver.Suggestion{coach.Best})[0],
 		GapBits:            round(coach.GapBits, 4),
 		PoolSize:           coach.PoolSize,
 		PossibleCount:      coach.PossibleCount,
