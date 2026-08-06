@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/mmrzz/wordle-coach/internal/data"
 )
@@ -110,23 +111,35 @@ func TestSuggestOpensFromTheTable(t *testing.T) {
 	}
 }
 
-// The precomputed table has to stay in step with the word lists. On failure
-// this prints a replacement table ready to paste into openers.go.
+// The two rankings are constants, so they are tabulated rather than found
+// again on every new game. This is what keeps them honest: each table must be
+// what scoring the whole pool against its own answer list actually gives.
 func TestOpenerTableMatchesData(t *testing.T) {
 	e := testEngine(t)
 
-	scored := e.scorePool(e.set.Allowed, e.set.Answers, DefaultBeta)
-	sortSuggestions(scored)
+	tables := []struct {
+		name  string
+		table []Suggestion
+		u     Universe
+	}{
+		{"openerTable", openerTable, Official},
+		{"offBookOpenerTable", offBookOpenerTable, OffBook},
+	}
 
-	for i, want := range openerTable {
-		got := scored[i]
-		if got.Word != want.Word || math.Abs(got.Bits-want.Bits) > 1e-6 {
-			for _, s := range scored[:len(openerTable)] {
-				t.Logf("\t{Word: %q, Bits: %.6f, ExpRemaining: %.4f, InAnswerSet: %v},",
-					s.Word, s.Bits, s.ExpRemaining, s.InAnswerSet)
+	for _, tt := range tables {
+		scored := e.scorePool(e.set.Allowed, e.answers(tt.u), DefaultBeta)
+		sortSuggestions(scored)
+
+		for i, want := range tt.table {
+			got := scored[i]
+			if got.Word != want.Word || math.Abs(got.Bits-want.Bits) > 1e-6 {
+				for _, s := range scored[:len(tt.table)] {
+					t.Logf("	{Word: %q, Bits: %.6f, ExpRemaining: %.4f, InAnswerSet: %v},",
+						s.Word, s.Bits, s.ExpRemaining, s.InAnswerSet)
+				}
+				t.Fatalf("%s[%d] = %q/%.6f, data gives %q/%.6f: paste the table above into openers.go",
+					tt.name, i, want.Word, want.Bits, got.Word, got.Bits)
 			}
-			t.Fatalf("openerTable[%d] = %q/%.6f, data gives %q/%.6f: paste the table above into openers.go",
-				i, want.Word, want.Bits, got.Word, got.Bits)
 		}
 	}
 }
@@ -465,18 +478,32 @@ func TestContradictoryColoursStayInconsistentOffTheBooks(t *testing.T) {
 	}
 }
 
-// The opener table was scored against the official answers, so it is only an
-// answer to the official question.
-func TestOffBookSkipsTheOpenerTable(t *testing.T) {
+// An empty board off the books is the most expensive question the engine can
+// be asked and the least informative, so it comes off a table exactly as the
+// official opening does — and off its own table, not the official one.
+func TestOffBookOpensFromItsOwnTable(t *testing.T) {
 	e := testEngine(t)
 
 	opts := easy(5)
 	opts.Universe = OffBook
+
+	start := time.Now()
 	got, err := e.Suggest(nil, opts)
+	elapsed := time.Since(start)
 	if err != nil {
 		t.Fatalf("Suggest: %v", err)
 	}
+
 	if got.PossibleCount != len(e.set.Allowed) {
 		t.Errorf("PossibleCount = %d, want every legal guess (%d)", got.PossibleCount, len(e.set.Allowed))
+	}
+	if got.Suggestions[0].Word == openerTable[0].Word {
+		t.Errorf("best = %q, which is the official opener: the wider list ranks openers differently",
+			got.Suggestions[0].Word)
+	}
+	// Scoring it live takes seconds even across every core, so the clock is
+	// what proves a table answered instead.
+	if elapsed > time.Second {
+		t.Errorf("took %v, so the ranking was computed rather than tabulated", elapsed)
 	}
 }

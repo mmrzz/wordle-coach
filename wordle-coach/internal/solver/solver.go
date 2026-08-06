@@ -191,16 +191,17 @@ func (e *Engine) Suggest(history []Turn, opts Options) (Result, error) {
 	}
 
 	// With nothing known every game opens from the same position, so the
-	// ranking is a constant and comes from the table. A moved slider is a
-	// different ranking, which has to be computed, and so is a different
-	// answer list: the table was scored against the official one.
-	if len(history) == 0 && opts.Universe == Official && math.Abs(opts.Beta-DefaultBeta) < betaEpsilon {
+	// ranking is a constant and comes from a table: one per answer list, since
+	// the two rank openers differently. A moved slider is a third ranking and
+	// has to be computed.
+	if len(history) == 0 && math.Abs(opts.Beta-DefaultBeta) < betaEpsilon {
+		answers := e.answers(opts.Universe)
 		return Result{
-			PossibleCount: len(e.set.Answers),
-			Suggestions:   openers(opts.Limit),
+			PossibleCount: len(answers),
+			Suggestions:   openers(opts.Limit, opts.Universe),
 			// Cheap enough to compute even here: it is one pass over the
-			// answers, against the ~30M pattern evaluations the table saves.
-			Letters: letterOdds(e.set.Answers),
+			// answers, against the pattern evaluations the table saves.
+			Letters: letterOdds(answers),
 		}, nil
 	}
 
