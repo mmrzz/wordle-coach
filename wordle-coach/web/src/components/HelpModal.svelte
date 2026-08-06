@@ -46,6 +46,13 @@
 		have played it.
 	</p>
 
+	<p class="aside">
+		On an empty board there is a <strong>go wild</strong> offer above the grid:
+		one deliberately strange opener, and what it means. Nearly all of them are
+		bad guesses and good words. Click the line to play it, or
+		<span class="tickmark">↻</span> for another.
+	</p>
+
 	<h3>Bits, and what "leaves" means</h3>
 	<p>
 		Both numbers say the same thing two ways: how much a guess narrows the
@@ -74,12 +81,30 @@
 		you choose between.
 	</p>
 
-	<h3>The number beside each row</h3>
+	<h3>The stars beside each row</h3>
 	<p>
-		The bits that guess was worth, and where it ranked among all 12,972 legal
-		guesses. It is scored from the position you played it in, so it grades the
+		A mark out of five, measured against the best guess available at the time:
+		five stars means nothing else would have told you more, and two means you
+		left most of the information on the table. Underneath it is where the word
+		ranked among all 12,972 legal guesses.
+	</p>
+	<p>
+		Both are scored from the position you played it in, so they grade the
 		decision and not the luck — a guess can be excellent and still get you
-		nowhere.
+		nowhere. Hover for the bits behind the rating.
+	</p>
+
+	<h3>The two side panels</h3>
+	<p>
+		On the right, every letter with the chance it is in the answer and the spot
+		it most likely sits in, vowels kept apart from consonants. It is there so
+		you can work the word out yourself rather than be handed one; an italic
+		position means the letter is scattered and that spot is barely a hint.
+	</p>
+	<p>
+		On the left, once four or fewer answers survive, the shortlist itself. At
+		that point ranking guesses is beside the point — you can simply read the
+		words and pick.
 	</p>
 
 	<h3>The temperature dial</h3>

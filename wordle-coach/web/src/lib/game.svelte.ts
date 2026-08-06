@@ -19,6 +19,7 @@ import {
 	nextColor,
 	toPattern,
 	type Color,
+	type LetterOdds,
 	type Mode,
 	type Suggestion,
 	type Turn,
@@ -26,6 +27,13 @@ import {
 
 /** How many suggestions the question-mark panel lists. */
 export const SUGGESTION_COUNT = 5;
+
+/**
+ * Below this many surviving answers the board stops coaching and simply lists
+ * them: at four or fewer the player can read the shortlist and pick for
+ * themselves faster than any ranking can explain itself.
+ */
+export const SHORTLIST_BELOW = 5;
 
 /** How long typing must settle before an unlisted word is sent off to be scored. */
 const RATE_DEBOUNCE_MS = 350;
@@ -55,6 +63,12 @@ export type Outcome =
 /** What a row's score badge shows. Rank is absent until a word has been graded. */
 export type Score = {
 	bits: number;
+	/**
+	 * What the best guess in the same position was worth, which is what the
+	 * star rating measures against. Absent on scores restored from a save
+	 * written before ratings existed.
+	 */
+	bestBits?: number;
 	rank?: number;
 	poolSize?: number;
 	percentile?: number;
@@ -106,6 +120,7 @@ export class Game {
 	suggestions = $state<Suggestion[]>([]);
 	possibleCount = $state(0);
 	remaining = $state<string[]>([]);
+	letters = $state<LetterOdds[]>([]);
 	activeScore = $state<Score | null>(null);
 
 	beta = $state(DEFAULT_BETA);
@@ -160,6 +175,27 @@ export class Game {
 		return keyColors(this.history);
 	}
 
+	/**
+	 * The surviving answers, once there are few enough to simply read. Empty
+	 * otherwise, including once the game is over, when the board is already
+	 * showing the answer and a list beside it would only be in the way.
+	 */
+	get shortlist(): string[] {
+		if (this.over || this.remaining.length >= SHORTLIST_BELOW) return [];
+		return this.remaining;
+	}
+
+	/**
+	 * True until the first turn is confirmed, which is as long as an opening
+	 * word is worth offering. Colouring counts: the offer cannot be taken any
+	 * more, but leaving it up means it goes away as the board turns over rather
+	 * than shifting the grid the moment Enter is pressed.
+	 */
+	get atStart(): boolean {
+		if (this.history.length > 0) return false;
+		return this.phase === "typing" || this.phase === "coloring";
+	}
+
 	/** True once the word list has arrived and the board can be used. */
 	get ready(): boolean {
 		return this.phase !== "loading" && this.phase !== "offline";
@@ -210,6 +246,7 @@ export class Game {
 		this.activeScore = null;
 		this.suggestions = [];
 		this.remaining = [];
+		this.letters = [];
 		this.bouncingRow = null;
 		this.revealingRow = null;
 		this.outcome = null;
@@ -430,6 +467,7 @@ export class Game {
 			this.suggestions = res.suggestions;
 			this.possibleCount = res.possibleCount;
 			this.remaining = res.remaining ?? [];
+			this.letters = res.letters ?? [];
 
 			/*
 			 * One survivor means the answer is settled, whether or not it has
@@ -466,6 +504,7 @@ export class Game {
 			const res = await rate(before, guess, this.options);
 			this.rows[row].score = {
 				bits: res.playedBits,
+				bestBits: res.best.bits,
 				rank: res.playedRank,
 				poolSize: res.poolSize,
 				percentile: res.percentile,
@@ -493,8 +532,12 @@ export class Game {
 		const known = this.suggestions.findIndex((s) => s.word === word);
 		if (known !== -1) {
 			// The suggestion list is the top of the fully sorted pool, so its
-			// position is the word's rank.
-			this.activeScore = { bits: this.suggestions[known].bits, rank: known + 1 };
+			// position is the word's rank and its head is the best guess going.
+			this.activeScore = {
+				bits: this.suggestions[known].bits,
+				bestBits: this.suggestions[0].bits,
+				rank: known + 1,
+			};
 			return;
 		}
 
@@ -511,6 +554,7 @@ export class Game {
 			if (this.activeWord !== word) return;
 			this.activeScore = {
 				bits: res.playedBits,
+				bestBits: res.best.bits,
 				rank: res.playedRank,
 				poolSize: res.poolSize,
 				percentile: res.percentile,

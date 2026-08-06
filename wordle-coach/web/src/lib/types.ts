@@ -27,11 +27,29 @@ export type Suggestion = {
 	inAnswerSet: boolean;
 };
 
+/**
+ * Where one letter stands across the answers still in play. The engine sends
+ * all 26 in alphabetical order, ruled-out ones included, and the grouping and
+ * ordering are left to the UI.
+ */
+export type LetterOdds = {
+	letter: string;
+	/** Share of the remaining answers containing it, 0 to 1. */
+	presence: number;
+	/** The slot it sits in most often, counting from 0, or -1 if ruled out. */
+	position: number;
+	/** Share of all remaining answers holding it at that slot. */
+	positionOdds: number;
+};
+
+export const VOWELS = new Set(["a", "e", "i", "o", "u"]);
+
 export type SuggestResponse = {
 	possibleCount: number;
 	suggestions: Suggestion[];
 	/** Only sent when few enough answers remain to list them. */
 	remaining?: string[];
+	letters: LetterOdds[];
 };
 
 export type RateResponse = {

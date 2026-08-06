@@ -22,6 +22,9 @@
 	--keyboard-height: 200px;
 	/* Room reserved either side of the board for the score badges. */
 	--aside-width: 96px;
+	/* The two coaching rails outside the app shell. Wide enough for a five
+	   letter word and a percentage, plus the padding of the card inside. */
+	--rail-width: 216px;
 
 	color-scheme: light dark;
 }
@@ -34,6 +37,10 @@
 	--fg-faint: #a3a7a9;
 	--bg: #ffffff;
 	--bg-raised: #ffffff;
+	/* A panel that has to read as its own surface where --bg-raised would be
+	   invisible against the page. */
+	--panel-bg: #f6f7f8;
+	--panel-border: #dcdfe3;
 	--border: #d3d6da;
 	--border-strong: #878a8c;
 	--divider: #d3d6da;
@@ -60,6 +67,8 @@
 	--fg-faint: #565758;
 	--bg: #121213;
 	--bg-raised: #1a1a1b;
+	--panel-bg: #1c1c1e;
+	--panel-border: #3a3a3c;
 	--border: #3a3a3c;
 	--border-strong: #565758;
 	--divider: #3a3a3c;
@@ -87,6 +96,8 @@
 		--fg-faint: #565758;
 		--bg: #121213;
 		--bg-raised: #1a1a1b;
+		--panel-bg: #1c1c1e;
+		--panel-border: #3a3a3c;
 		--border: #3a3a3c;
 		--border-strong: #565758;
 		--divider: #3a3a3c;

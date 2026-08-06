@@ -4,10 +4,13 @@
 	import Header from "./components/Header.svelte";
 	import HelpModal from "./components/HelpModal.svelte";
 	import Keyboard from "./components/Keyboard.svelte";
+	import LetterOdds from "./components/LetterOdds.svelte";
+	import Shortlist from "./components/Shortlist.svelte";
 	import StatusBar from "./components/StatusBar.svelte";
 	import SuggestionPanel from "./components/SuggestionPanel.svelte";
 	import TemperatureDial from "./components/TemperatureDial.svelte";
 	import Toast from "./components/Toast.svelte";
+	import WildOpener from "./components/WildOpener.svelte";
 	import { Game } from "./lib/game.svelte";
 
 	type Theme = "light" | "dark";
@@ -87,13 +90,25 @@
 	/>
 
 	<StatusBar {game} />
-	<Board {game} />
+
+	<div class="stage">
+		<WildOpener {game} />
+		<Board {game} />
+	</div>
 
 	<Keyboard
 		colors={game.keyColors}
 		lettersDisabled={game.phase !== "typing"}
 		onKey={press}
 	/>
+</div>
+
+<div class="rail left">
+	<Shortlist {game} />
+</div>
+
+<div class="rail right">
+	<LetterOdds {game} />
 </div>
 
 <Toast message={game.toast} />
@@ -112,5 +127,51 @@
 		height: 100%;
 		max-width: 560px;
 		margin: 0 auto;
+	}
+
+	/*
+	 * The wild opener belongs to the board, not to the status line above it, so
+	 * the two are centred together as one block. Without this the opener would
+	 * be pinned under the answers-left count while the board floated free in the
+	 * space below, which read as if the offer were part of the status line.
+	 */
+	.stage {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		flex: 1;
+		min-height: 0;
+	}
+
+	/*
+	 * The rails are fixed rather than columns of a flex row, so the board sits
+	 * exactly where the real game puts it whether or not the shortlist has
+	 * anything to say. They need the shell's 560px plus their own width twice
+	 * over; below that there is no room and they are hidden, with the ? panel
+	 * carrying the same information instead.
+	 */
+	.rail {
+		position: fixed;
+		top: calc(var(--header-height) + 12px);
+		/* Clear of the temperature dial, which is fixed to the bottom left. */
+		bottom: 76px;
+		width: var(--rail-width);
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		z-index: 20;
+	}
+
+	.left {
+		left: 16px;
+	}
+
+	.right {
+		right: 32px;
+	}
+
+	@media (max-width: 1060px) {
+		.rail {
+			display: none;
+		}
 	}
 </style>

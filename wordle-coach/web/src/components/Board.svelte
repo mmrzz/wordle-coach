@@ -35,12 +35,16 @@
 	 * the real game's centring. Symmetric padding of exactly their width is
 	 * what reserves room for them: the board stays centred in the viewport and
 	 * shrinks rather than letting the right-hand column fall off the screen.
+	 *
+	 * It takes only the height it needs: the centring of the board within the
+	 * page is the stage's job, so that whatever else the stage holds stays with
+	 * the board rather than being pushed away from it.
 	 */
 	.board-area {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		flex: 1;
+		flex: 0 1 auto;
 		min-height: 0;
 		padding: 10px var(--aside-width);
 	}

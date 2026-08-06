@@ -1,13 +1,19 @@
 <script lang="ts">
 	import { definitionUrl } from "../lib/dictionary";
 	import type { Game } from "../lib/game.svelte";
+	import { format, rate, tier } from "../lib/stars";
 	import { band } from "../lib/temperature";
+	import LetterOdds from "./LetterOdds.svelte";
 	import Modal from "./Modal.svelte";
 
 	type Props = { game: Game };
 	let { game }: Props = $props();
 
 	const close = () => (game.panelOpen = false);
+
+	// The list is the top of the pool, so its head is the best guess going and
+	// every rating in the panel is measured against the same word.
+	const bestBits = $derived(game.suggestions[0]?.bits ?? 0);
 </script>
 
 <Modal open={game.panelOpen} title="Best guesses" onclose={close}>
@@ -44,8 +50,16 @@
 				>
 					<span class="rank">{i + 1}</span>
 					<span class="word">{suggestion.word}</span>
-					<span class="stats">
-						<span class="bits">{suggestion.bits.toFixed(2)} bits</span>
+					<span
+						class="stats"
+						title={`${suggestion.bits.toFixed(2)} bits of information`}
+					>
+						<span class="score" data-tier={tier(rate(suggestion.bits, bestBits))}>
+							{format(rate(suggestion.bits, bestBits))}<span
+								class="star"
+								aria-hidden="true">★</span
+							>
+						</span>
 						<span class="left">leaves ~{suggestion.expRemaining.toFixed(1)}</span>
 					</span>
 					{#if suggestion.inAnswerSet}
@@ -66,10 +80,16 @@
 		{/each}
 	</ol>
 
+	<!-- On a wide screen this lives in the right-hand rail, where it can stay
+	     open while you play. There is no room for a rail here. -->
+	<div class="railed">
+		<LetterOdds {game} />
+	</div>
+
 	<p class="footnote">
-		<strong>bits</strong> is how much a guess tells you — each bit halves the
-		field. <strong>leaves</strong> is how many answers you should expect to be
-		left afterwards. Higher bits and lower leaves are both good.
+		<strong>★</strong> rates a guess out of five against the best one going, so
+		five stars means nothing else would have told you more.
+		<strong>leaves</strong> is how many answers you should expect to be left afterwards.
 	</p>
 	<p class="footnote">
 		Click a word to play it, or <span class="arrow">↗</span> for its definition.
@@ -158,9 +178,37 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.bits {
+	.score {
 		font-size: 0.78rem;
 		font-weight: 700;
+	}
+
+	.score[data-tier="great"] {
+		color: var(--color-correct);
+	}
+
+	.score[data-tier="good"] {
+		color: var(--darkened-yellow);
+	}
+
+	.star {
+		margin-left: 0.12em;
+		font-size: 0.85em;
+	}
+
+	/* Only when the rail it normally lives in has been hidden, so the two are
+	   never on screen at once saying the same thing. */
+	.railed {
+		display: none;
+		margin-top: 14px;
+		padding-top: 12px;
+		border-top: 1px solid var(--divider);
+	}
+
+	@media (max-width: 1060px) {
+		.railed {
+			display: block;
+		}
 	}
 
 	.left {
