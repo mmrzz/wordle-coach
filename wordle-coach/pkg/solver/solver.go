@@ -8,7 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mmrzz/wordle-coach/internal/data"
+	"github.com/mmrzz/wordle-coach/pkg/data"
 )
 
 // RemainingThreshold is the largest candidate count worth listing outright. At

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mmrzz/wordle-coach/internal/data"
+	"github.com/mmrzz/wordle-coach/pkg/data"
 )
 
 func testEngine(t *testing.T) *Engine {

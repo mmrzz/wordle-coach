@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 
-	"github.com/mmrzz/wordle-coach/internal/data"
-	"github.com/mmrzz/wordle-coach/internal/solver"
+	"github.com/mmrzz/wordle-coach/pkg/data"
+	"github.com/mmrzz/wordle-coach/pkg/solver"
 )
 
 // NewMux wires every route the coach serves.

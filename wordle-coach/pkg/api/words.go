@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/mmrzz/wordle-coach/internal/data"
+	"github.com/mmrzz/wordle-coach/pkg/data"
 )
 
 // Words serves the guess list so the browser can reject a typed non-word

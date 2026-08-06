@@ -3,7 +3,7 @@ package api
 import (
 	"testing"
 
-	"github.com/mmrzz/wordle-coach/internal/solver"
+	"github.com/mmrzz/wordle-coach/pkg/solver"
 )
 
 // The wire spelling and the engine's encoding are written in two places, so

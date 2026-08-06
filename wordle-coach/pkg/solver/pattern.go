@@ -7,7 +7,7 @@
 // for consistency.
 package solver
 
-import "github.com/mmrzz/wordle-coach/internal/data"
+import "github.com/mmrzz/wordle-coach/pkg/data"
 
 // WordLen is the length of every word the engine handles.
 const WordLen = data.WordLen

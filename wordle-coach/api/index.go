@@ -4,6 +4,11 @@
 // exported Handler. One file serves every route: a file per endpoint would
 // mean several exported symbols of the same name in one directory, which the
 // rest of the module could no longer be built alongside.
+//
+// The build happens inside a synthesized module of Vercel's own, with this
+// package relabelled handler/api and the real one pulled in beside it. That is
+// why the shared packages sit under pkg/ and not internal/: from a module that
+// is not ours, an internal package is not importable at all.
 package handler
 
 import (
@@ -11,8 +16,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/mmrzz/wordle-coach/internal/api"
-	"github.com/mmrzz/wordle-coach/internal/data"
+	"github.com/mmrzz/wordle-coach/pkg/api"
+	"github.com/mmrzz/wordle-coach/pkg/data"
 )
 
 // load parses the word lists once per instance rather than once per request.
@@ -30,7 +35,7 @@ var load = sync.OnceValues(func() (*http.ServeMux, error) {
 // No CORS here: the page and the API are served from one origin, so there is
 // no cross-origin request to allow. That is a property of this deployment and
 // not of the API, which is why the middleware stays with the standalone
-// server rather than moving into internal/api.
+// server rather than moving into pkg/api.
 func Handler(w http.ResponseWriter, r *http.Request) {
 	mux, err := load()
 	if err != nil {

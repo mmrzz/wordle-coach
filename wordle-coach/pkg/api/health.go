@@ -1,4 +1,10 @@
 // Package api holds the HTTP handlers for the wordle-coach API.
+//
+// This and its siblings live under pkg/ rather than internal/ deliberately.
+// The serverless entrypoint in api/ is compiled inside a module of the host's
+// own making, and an internal package cannot be imported from outside the
+// module that owns it: moving these back would build fine here and fail only
+// on deploy.
 package api
 
 import (

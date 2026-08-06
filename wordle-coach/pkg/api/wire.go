@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mmrzz/wordle-coach/internal/solver"
+	"github.com/mmrzz/wordle-coach/pkg/solver"
 )
 
 // maxHistory caps a request at more turns than any real game, so a malicious

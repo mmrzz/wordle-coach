@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/mmrzz/wordle-coach/internal/api"
-	"github.com/mmrzz/wordle-coach/internal/data"
+	"github.com/mmrzz/wordle-coach/pkg/api"
+	"github.com/mmrzz/wordle-coach/pkg/data"
 )
 
 const (

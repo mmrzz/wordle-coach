@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/mmrzz/wordle-coach/internal/solver"
+	"github.com/mmrzz/wordle-coach/pkg/solver"
 )
 
 const (
