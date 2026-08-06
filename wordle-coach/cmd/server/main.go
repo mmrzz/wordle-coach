@@ -8,7 +8,6 @@ import (
 
 	"github.com/mmrzz/wordle-coach/internal/api"
 	"github.com/mmrzz/wordle-coach/internal/data"
-	"github.com/mmrzz/wordle-coach/internal/solver"
 )
 
 const (
@@ -28,19 +27,9 @@ func main() {
 	}
 	log.Printf("loaded %d answers, %d allowed guesses", len(set.Answers), len(set.Allowed))
 
-	// The engine holds no per-game state, so one instance serves every request.
-	solve := api.NewSolver(solver.New(set))
-
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /healthz", api.Health)
-	mux.HandleFunc("GET /api/words", api.NewWords(set).List)
-	mux.HandleFunc("POST /api/suggest", solve.Suggest)
-	mux.HandleFunc("POST /api/rate", solve.Rate)
-
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           logging(cors(origins)(mux)),
+		Handler:           logging(cors(origins)(api.NewMux(set))),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

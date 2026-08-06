@@ -1,4 +1,12 @@
-export const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+/*
+ * Empty in production, because the page and the API are served from the same
+ * origin there and a relative path is what keeps them together however the
+ * deployment is named. In development the API is a separate process on another
+ * port, which is the only reason this is ever an absolute URL. VITE_API_URL
+ * overrides both, for pointing a local page at a deployed server.
+ */
+export const BASE_URL =
+	import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? "" : "http://localhost:8080");
 
 /** The error body the Go handlers send on every failure. */
 type ErrorBody = { error: string; code: string };

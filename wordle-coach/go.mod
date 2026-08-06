@@ -1,3 +1,3 @@
 module github.com/mmrzz/wordle-coach
 
-go 1.26.4
+go 1.24.0

@@ -1,0 +1,9 @@
+{
+  "installCommand": "npm --prefix web ci",
+  "buildCommand": "npm --prefix web run build",
+  "outputDirectory": "web/dist",
+  "rewrites": [
+    { "source": "/api/:route(words|suggest|rate)", "destination": "/api/index?path=/api/:route" },
+    { "source": "/healthz", "destination": "/api/index?path=/healthz" }
+  ]
+}
