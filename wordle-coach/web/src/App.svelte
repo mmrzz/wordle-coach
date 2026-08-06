@@ -93,7 +93,7 @@
 	<StatusBar {game} />
 
 	<div class="stage">
-		<WildOpener {game} />
+		<div class="offer"><WildOpener {game} /></div>
 		<Board {game} />
 	</div>
 
@@ -132,16 +132,30 @@
 	}
 
 	/*
-	 * The wild opener belongs to the board, not to the status line above it, so
-	 * the two are centred together as one block. Without this the opener would
-	 * be pinned under the answers-left count while the board floated free in the
-	 * space below, which read as if the offer were part of the status line.
+	 * Three rows, with equal weight above and below the board. The board's
+	 * position therefore depends on nothing but those two, so it sits in the
+	 * same place whether or not there is an offer above it: the card appearing
+	 * on turn one and going again on turn two no longer shunts the grid.
+	 *
+	 * The offer lives in the top row, hard against the board, which keeps it
+	 * reading as part of the board rather than as part of the status line above
+	 * it. Reserving its height in the flow instead would have worked too, at
+	 * the price of pushing the board down for a whole game to keep one turn's
+	 * card from moving it.
+	 *
+	 * The middle row may shrink below its content, so a short window still
+	 * shrinks the board rather than pushing it past the keyboard.
 	 */
 	.stage {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
+		display: grid;
+		grid-template-rows: 1fr minmax(0, auto) 1fr;
 		flex: 1;
+		min-height: 0;
+	}
+
+	.offer {
+		grid-row: 1;
+		align-self: end;
 		min-height: 0;
 	}
 
