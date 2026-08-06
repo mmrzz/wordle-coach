@@ -97,6 +97,7 @@ type Saved = {
 	scores: (Score | null)[];
 	beta: number;
 	mode: Mode;
+	offBook?: boolean;
 };
 
 /**
@@ -126,6 +127,15 @@ export class Game {
 	beta = $state(DEFAULT_BETA);
 	mode = $state<Mode>("easy");
 
+	/**
+	 * Whether the answer may be any legal guess rather than one of the 2,315
+	 * official answers. Off until the position proves it has to be on, because
+	 * the short list is the far better coach for as long as it is right.
+	 */
+	offBook = $state(false);
+	/** True while the player is being asked whether to set the list aside. */
+	offBookPrompt = $state(false);
+
 	thinking = $state(false);
 	toast = $state("");
 	fatal = $state("");
@@ -149,7 +159,7 @@ export class Game {
 	private toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 	get options(): SolverOptions {
-		return { mode: this.mode, beta: this.beta };
+		return { mode: this.mode, offBook: this.offBook, beta: this.beta };
 	}
 
 	/** Our current best guess, shown greyed in the active row until overtyped. */
@@ -235,7 +245,12 @@ export class Game {
 		await this.refresh();
 	}
 
-	/** Clears the board but keeps the solver settings, which are a preference. */
+	/**
+	 * Clears the board but keeps the solver settings, which are a preference.
+	 * Going off the books is not one of them: it was forced by a position that
+	 * no longer exists, so a new game starts back on the official list and asks
+	 * again if it has to.
+	 */
 	reset() {
 		this.cancelPending();
 		this.history = [];
@@ -251,6 +266,8 @@ export class Game {
 		this.revealingRow = null;
 		this.outcome = null;
 		this.answer = null;
+		this.offBook = false;
+		this.offBookPrompt = false;
 		this.phase = "typing";
 		this.persist();
 		void this.refresh();
@@ -453,6 +470,35 @@ export class Game {
 		this.showToast(message);
 	}
 
+	// -- going off the books -----------------------------------------------
+
+	/**
+	 * The player is sure of the colours, so the answer list is what is wrong.
+	 *
+	 * Everything is scored again from the wider list, past rows included: a
+	 * grade means "how good was this against the field as it really was", and
+	 * the field has just turned out to be a different one.
+	 */
+	async goOffBook() {
+		this.offBookPrompt = false;
+		if (this.offBook) return;
+
+		this.offBook = true;
+		this.persist();
+		this.showToast("Off the books — any legal word can be the answer now");
+		await this.rescore();
+	}
+
+	/**
+	 * The player would rather look again, which is the likelier of the two: a
+	 * mistyped colour is an everyday slip and an unofficial answer is not. The
+	 * last turn reopens for recolouring, exactly as a contradiction does.
+	 */
+	checkTheColours() {
+		this.offBookPrompt = false;
+		this.rewind("Have another look at the colours");
+	}
+
 	// -- server work -------------------------------------------------------
 
 	/** Fetches the ranking for the current position. */
@@ -490,6 +536,14 @@ export class Game {
 			if (isAbort(err)) return;
 			if (err instanceof ApiError && err.code === "inconsistent_history") {
 				this.rewind("Those colours can't all be right — check the tiles");
+				return;
+			}
+			if (err instanceof ApiError && err.code === "off_book_answer") {
+				// The colours are possible, just not for any official answer.
+				// Which of the two explanations is true is not ours to decide,
+				// so the position is left exactly as it is and the player is
+				// asked. Both replies below pick up from here.
+				this.offBookPrompt = true;
 				return;
 			}
 			this.showToast(describe(err));
@@ -639,6 +693,7 @@ export class Game {
 			scores: this.rows.map((r) => r.score),
 			beta: this.beta,
 			mode: this.mode,
+			offBook: this.offBook,
 		};
 		try {
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -673,6 +728,10 @@ export class Game {
 		this.history = history;
 		this.beta = typeof saved.beta === "number" ? saved.beta : DEFAULT_BETA;
 		this.mode = saved.mode === "hard" ? "hard" : "easy";
+		// Restored with the game rather than reset: the position it was needed
+		// for is the position being resumed, and asking twice for the same
+		// board would be a bug the player has to answer.
+		this.offBook = saved.offBook === true;
 
 		history.forEach((turn, i) => {
 			this.rows[i] = {

@@ -37,6 +37,13 @@
 			<strong>{game.possibleCount.toLocaleString()}</strong>
 			{game.possibleCount === 1 ? "answer left" : "answers left"}
 		</span>
+		{#if game.offBook}
+			<!-- The count means something different now, and a much larger
+			     number with no explanation reads as a bug. -->
+			<span class="offbook" title="The answer may be any legal word, not only an official one">
+				off the books
+			</span>
+		{/if}
 		{#if game.thinking}
 			<span class="thinking" aria-label="Scoring">·</span>
 		{/if}
@@ -61,6 +68,17 @@
 		color: var(--fg);
 		font-size: 0.9rem;
 		font-variant-numeric: tabular-nums;
+	}
+
+	.offbook {
+		padding: 1px 6px;
+		border: 1px solid var(--border);
+		border-radius: 10px;
+		font-size: 0.68rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--fg-muted);
+		white-space: nowrap;
 	}
 
 	.warn {

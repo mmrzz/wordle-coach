@@ -10,6 +10,13 @@ import type {
 /** Settings that apply to every scoring request. */
 export type SolverOptions = {
 	mode: Mode;
+	/**
+	 * Widens the answer set from the official list to every legal guess, for
+	 * games that do not draw their solution from that list. Off unless the
+	 * player has said otherwise, since the narrower list is the better coach
+	 * whenever it is right.
+	 */
+	offBook: boolean;
 	/** The temperature slider's Renyi order. */
 	beta: number;
 };
@@ -23,7 +30,7 @@ export function suggest(
 ): Promise<SuggestResponse> {
 	return postJSON<SuggestResponse>(
 		"/api/suggest",
-		{ mode: opts.mode, beta: opts.beta, history, limit },
+		{ mode: opts.mode, offBook: opts.offBook, beta: opts.beta, history, limit },
 		signal,
 	);
 }
@@ -40,7 +47,7 @@ export function rate(
 ): Promise<RateResponse> {
 	return postJSON<RateResponse>(
 		"/api/rate",
-		{ mode: opts.mode, beta: opts.beta, history, played },
+		{ mode: opts.mode, offBook: opts.offBook, beta: opts.beta, history, played },
 		signal,
 	);
 }

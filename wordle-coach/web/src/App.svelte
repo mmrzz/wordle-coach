@@ -5,6 +5,7 @@
 	import HelpModal from "./components/HelpModal.svelte";
 	import Keyboard from "./components/Keyboard.svelte";
 	import LetterOdds from "./components/LetterOdds.svelte";
+	import OffBookPrompt from "./components/OffBookPrompt.svelte";
 	import Shortlist from "./components/Shortlist.svelte";
 	import StatusBar from "./components/StatusBar.svelte";
 	import SuggestionPanel from "./components/SuggestionPanel.svelte";
@@ -63,7 +64,7 @@
 	function onkeydown(event: KeyboardEvent) {
 		// Let dialogs and the dial handle their own keys, and leave browser
 		// shortcuts alone.
-		if (game.panelOpen || helpOpen) return;
+		if (game.panelOpen || helpOpen || game.offBookPrompt) return;
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 
 		const target = event.target as HTMLElement | null;
@@ -113,6 +114,7 @@
 
 <Toast message={game.toast} />
 <SuggestionPanel {game} />
+<OffBookPrompt {game} />
 <HelpModal open={helpOpen} onclose={() => (helpOpen = false)} />
 <TemperatureDial {game} />
 

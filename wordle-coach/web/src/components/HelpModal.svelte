@@ -123,6 +123,22 @@
 		undo arrow to step back a whole turn. If the colours you entered cannot all
 		be true, you will be told and sent back to fix them.
 	</p>
+
+	<h3>When the answer is not on the list</h3>
+	<p>
+		We solve against the official list of 2,315 answers, which is what the real
+		game draws from. Some clones do not: they let any of the 12,972 legal words
+		be the answer.
+	</p>
+	<p>
+		So when nothing on the list can fit your colours, you are asked rather than
+		told. Look again first — a mis-clicked tile explains it far more often. If
+		you are sure, take the <strong>go off the books</strong> button and the
+		whole guess list becomes fair game for the answer. Expect more guesses to
+		be needed: a wider field is a slower one to narrow. The board says
+		<em>off the books</em> beside the count while it is on, and a new game
+		starts back on the list.
+	</p>
 </Modal>
 
 <style>
