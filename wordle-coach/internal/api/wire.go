@@ -108,6 +108,15 @@ func decodeWord(s string) (string, error) {
 	return word, nil
 }
 
+// decodeUniverse reads where the answer is allowed to come from. Absent means
+// the official list, so a client that knows nothing of this stays on the books.
+func decodeUniverse(offBook bool) solver.Universe {
+	if offBook {
+		return solver.OffBook
+	}
+	return solver.Official
+}
+
 // decodeMode reads the guessing mode, defaulting to easy when unset.
 func decodeMode(s string) (solver.Mode, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
@@ -123,7 +132,7 @@ func decodeMode(s string) (solver.Mode, error) {
 // decodeOptions builds the engine request. Beta arrives as a pointer so that an
 // absent field means "default" while an explicit 0 is still rejected as out of
 // range, rather than the two being indistinguishable.
-func decodeOptions(mode string, beta *float64, limit int) (solver.Options, error) {
+func decodeOptions(mode string, offBook bool, beta *float64, limit int) (solver.Options, error) {
 	m, err := decodeMode(mode)
 	if err != nil {
 		return solver.Options{}, err
@@ -144,7 +153,12 @@ func decodeOptions(mode string, beta *float64, limit int) (solver.Options, error
 		return solver.Options{}, fmt.Errorf("limit %d is above the maximum of %d", limit, maxSuggestions)
 	}
 
-	return solver.Options{Mode: m, Beta: b, Limit: limit}, nil
+	return solver.Options{
+		Mode:     m,
+		Universe: decodeUniverse(offBook),
+		Beta:     b,
+		Limit:    limit,
+	}, nil
 }
 
 // toSuggestions converts engine results for the wire, rounding the scores to a

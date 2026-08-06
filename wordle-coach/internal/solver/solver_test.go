@@ -36,7 +36,7 @@ func TestFilterAlwaysKeepsTheAnswer(t *testing.T) {
 			history = append(history, Turn{Guess: g, Pattern: GetPattern(g, answer)})
 		}
 
-		candidates := e.Filter(history)
+		candidates := e.Filter(history, Official)
 		found := false
 		for _, c := range candidates {
 			if c == answer {
@@ -63,7 +63,7 @@ func TestFilterIsOrderIndependent(t *testing.T) {
 	}
 	reversed := []Turn{forward[2], forward[1], forward[0]}
 
-	a, b := e.Filter(forward), e.Filter(reversed)
+	a, b := e.Filter(forward, Official), e.Filter(reversed, Official)
 	if len(a) != len(b) {
 		t.Fatalf("order changed the candidate count: %d vs %d", len(a), len(b))
 	}
@@ -83,7 +83,7 @@ func TestFilterNarrowsToTheAnswer(t *testing.T) {
 		history = append(history, Turn{Guess: g, Pattern: GetPattern(g, answer)})
 	}
 
-	got := e.Filter(history)
+	got := e.Filter(history, Official)
 	if len(got) != 1 || got[0] != answer {
 		t.Fatalf("Filter = %v, want exactly [%q]", got, answer)
 	}
@@ -256,7 +256,7 @@ func TestHardPoolContainsEveryCandidate(t *testing.T) {
 		pool[w] = struct{}{}
 	}
 
-	candidates := e.Filter(history)
+	candidates := e.Filter(history, Official)
 	for _, c := range candidates {
 		if _, ok := pool[c]; !ok {
 			t.Fatalf("candidate %q is missing from the hard-mode pool", c)
@@ -377,4 +377,106 @@ func TestSolvesEveryAnswer(t *testing.T) {
 	}
 
 	fmt.Printf("solved 120 answers, mean %.2f turns, worst %d\n", float64(total)/120, worst)
+}
+
+// offBookWord is a legal guess the official answer list does not contain, so
+// filtering within that list can never find it. It is what a game not using
+// the list can still be hiding.
+const offBookWord = "aalii"
+
+func TestOffBookAnswerIsFoundOutsideTheList(t *testing.T) {
+	e := testEngine(t)
+	if !e.set.IsAllowed(offBookWord) {
+		t.Fatalf("%q is not a legal guess, so the fixture is wrong", offBookWord)
+	}
+
+	// The word played against itself: every tile green, which no other word in
+	// the corpus can satisfy.
+	history := []Turn{{Guess: offBookWord, Pattern: AllGreen}}
+
+	if got := e.Filter(history, Official); len(got) != 0 {
+		t.Fatalf("Filter(Official) = %v, want nothing: the answer is not on that list", got)
+	}
+	got := e.Filter(history, OffBook)
+	if len(got) != 1 || got[0] != offBookWord {
+		t.Fatalf("Filter(OffBook) = %v, want [%q]", got, offBookWord)
+	}
+}
+
+// The whole point of the offer: the position the official list calls
+// impossible has to become solvable once the books are set aside.
+func TestSuggestOffTheBooksSolvesWhatTheListCannot(t *testing.T) {
+	e := testEngine(t)
+	history := []Turn{{Guess: offBookWord, Pattern: AllGreen}}
+
+	opts := easy(5)
+	opts.Universe = OffBook
+	got, err := e.Suggest(history, opts)
+	if err != nil {
+		t.Fatalf("Suggest off the books: %v", err)
+	}
+	if got.PossibleCount != 1 {
+		t.Errorf("PossibleCount = %d, want 1", got.PossibleCount)
+	}
+	if len(got.Remaining) != 1 || got.Remaining[0] != offBookWord {
+		t.Errorf("Remaining = %v, want [%q]", got.Remaining, offBookWord)
+	}
+}
+
+// A position only the wider list can explain must not be reported as a
+// mistyped colour: the player is about to be asked which of the two it is, and
+// the question only makes sense if the engine can tell them apart.
+func TestOfficialUniverseSaysWhenOffBookWouldHelp(t *testing.T) {
+	e := testEngine(t)
+	history := []Turn{{Guess: offBookWord, Pattern: AllGreen}}
+
+	_, err := e.Suggest(history, easy(5))
+	if !errors.Is(err, ErrOffBookOnly) {
+		t.Fatalf("Suggest err = %v, want ErrOffBookOnly", err)
+	}
+
+	_, err = e.Rate(history, "crane", easy(1))
+	if !errors.Is(err, ErrOffBookOnly) {
+		t.Fatalf("Rate err = %v, want ErrOffBookOnly", err)
+	}
+}
+
+// Feedback that contradicts itself is impossible for every word there is, so
+// widening the list changes nothing and the offer must not be made.
+func TestContradictoryColoursStayInconsistentOffTheBooks(t *testing.T) {
+	e := testEngine(t)
+
+	// No E anywhere, then E in position 5.
+	history := []Turn{
+		{Guess: "crane", Pattern: 0},
+		{Guess: "slate", Pattern: AllGreen},
+	}
+
+	for _, u := range []Universe{Official, OffBook} {
+		opts := easy(5)
+		opts.Universe = u
+		_, err := e.Suggest(history, opts)
+		if !errors.Is(err, ErrInconsistent) {
+			t.Errorf("universe %d: err = %v, want ErrInconsistent", u, err)
+		}
+		if errors.Is(err, ErrOffBookOnly) {
+			t.Errorf("universe %d: offered to go off the books, but nothing fits there either", u)
+		}
+	}
+}
+
+// The opener table was scored against the official answers, so it is only an
+// answer to the official question.
+func TestOffBookSkipsTheOpenerTable(t *testing.T) {
+	e := testEngine(t)
+
+	opts := easy(5)
+	opts.Universe = OffBook
+	got, err := e.Suggest(nil, opts)
+	if err != nil {
+		t.Fatalf("Suggest: %v", err)
+	}
+	if got.PossibleCount != len(e.set.Allowed) {
+		t.Errorf("PossibleCount = %d, want every legal guess (%d)", got.PossibleCount, len(e.set.Allowed))
+	}
 }

@@ -27,6 +27,19 @@ const (
 	Hard
 )
 
+// Universe selects which words are allowed to be the answer.
+type Universe int
+
+const (
+	// Official narrows within the curated answer list, which is what the
+	// original game draws its solution from.
+	Official Universe = iota
+	// OffBook treats every legal guess as a possible answer. Some clones do
+	// not honour the answer list, and against those the official list is not
+	// merely unhelpful but wrong: it rules the solution out.
+	OffBook
+)
+
 // Turn is one played guess and the feedback that came back from the game.
 type Turn struct {
 	Guess   string
@@ -37,6 +50,9 @@ type Turn struct {
 // set, so that forgetting it is an error rather than a silent rescoring.
 type Options struct {
 	Mode Mode
+	// Universe is where the answer may come from. The zero value is the
+	// official list, so going off the books is always a deliberate act.
+	Universe Universe
 	// Beta is the Rényi order, between MinBeta and MaxBeta. See score.go.
 	Beta float64
 	// Limit is how many suggestions to return. Ignored by Rate.
@@ -50,6 +66,9 @@ func (o Options) check() (Options, error) {
 	}
 	if o.Mode != Easy && o.Mode != Hard {
 		return o, fmt.Errorf("solver: unknown mode %d", o.Mode)
+	}
+	if o.Universe != Official && o.Universe != OffBook {
+		return o, fmt.Errorf("solver: unknown universe %d", o.Universe)
 	}
 	if o.Limit < 1 {
 		o.Limit = 1
@@ -105,9 +124,16 @@ type Coach struct {
 	PossibleCount int
 }
 
-// ErrInconsistent reports a history no answer satisfies, which means the
-// relayed feedback contradicts itself. Nearly always a mistyped colour.
-var ErrInconsistent = errors.New("solver: no answer is consistent with this history")
+// ErrInconsistent reports a history not even a legal guess satisfies, which
+// means the relayed feedback contradicts itself. Nearly always a mistyped
+// colour, because no word anywhere could have produced it.
+var ErrInconsistent = errors.New("solver: no word is consistent with this history")
+
+// ErrOffBookOnly reports a history no official answer satisfies although some
+// other legal guess does. It is the difference between "you coloured a tile
+// wrong" and "this site is not using the official answer list", and only the
+// player can say which, so it is reported rather than decided here.
+var ErrOffBookOnly = errors.New("solver: no official answer is consistent with this history, but a legal guess is")
 
 // Engine scores guesses against a corpus. It holds no per-game state, so a
 // single Engine serves every request concurrently.
@@ -120,7 +146,15 @@ func New(set *data.Set) *Engine {
 	return &Engine{set: set}
 }
 
-// Filter returns the answers still consistent with history, in list order.
+// answers returns every word u permits as a solution.
+func (e *Engine) answers(u Universe) []string {
+	if u == OffBook {
+		return e.set.Allowed
+	}
+	return e.set.Answers
+}
+
+// Filter returns the words of u still consistent with history, in list order.
 //
 // A word survives exactly when replaying every past guess against it would
 // have produced the feedback that was actually observed. Greens, yellows,
@@ -128,9 +162,10 @@ func New(set *data.Set) *Engine {
 // nothing else needs tracking. Intersection commutes, so the order of history
 // does not matter and the set is always rebuilt from the full answer list
 // rather than carried between requests.
-func (e *Engine) Filter(history []Turn) []string {
-	candidates := make([]string, 0, len(e.set.Answers))
-	for _, answer := range e.set.Answers {
+func (e *Engine) Filter(history []Turn, u Universe) []string {
+	pool := e.answers(u)
+	candidates := make([]string, 0, len(pool))
+	for _, answer := range pool {
 		consistent := true
 		for _, turn := range history {
 			if GetPattern(turn.Guess, answer) != turn.Pattern {
@@ -157,8 +192,9 @@ func (e *Engine) Suggest(history []Turn, opts Options) (Result, error) {
 
 	// With nothing known every game opens from the same position, so the
 	// ranking is a constant and comes from the table. A moved slider is a
-	// different ranking, which has to be computed.
-	if len(history) == 0 && math.Abs(opts.Beta-DefaultBeta) < betaEpsilon {
+	// different ranking, which has to be computed, and so is a different
+	// answer list: the table was scored against the official one.
+	if len(history) == 0 && opts.Universe == Official && math.Abs(opts.Beta-DefaultBeta) < betaEpsilon {
 		return Result{
 			PossibleCount: len(e.set.Answers),
 			Suggestions:   openers(opts.Limit),
@@ -168,9 +204,9 @@ func (e *Engine) Suggest(history []Turn, opts Options) (Result, error) {
 		}, nil
 	}
 
-	candidates := e.Filter(history)
+	candidates := e.Filter(history, opts.Universe)
 	if len(candidates) == 0 {
-		return Result{}, ErrInconsistent
+		return Result{}, e.emptyErr(history, opts.Universe)
 	}
 
 	scored := e.scorePool(e.pool(history, opts.Mode), candidates, opts.Beta)
@@ -201,9 +237,9 @@ func (e *Engine) Rate(history []Turn, played string, opts Options) (Coach, error
 		return Coach{}, fmt.Errorf("solver: %q is not an allowed guess", played)
 	}
 
-	candidates := e.Filter(history)
+	candidates := e.Filter(history, opts.Universe)
 	if len(candidates) == 0 {
-		return Coach{}, ErrInconsistent
+		return Coach{}, e.emptyErr(history, opts.Universe)
 	}
 
 	scored := e.scorePool(e.pool(history, opts.Mode), candidates, opts.Beta)
@@ -246,6 +282,19 @@ func (e *Engine) Rate(history []Turn, played string, opts Options) (Coach, error
 		PoolSize:           len(scored),
 		PossibleCount:      len(candidates),
 	}, nil
+}
+
+// emptyErr says which kind of dead end an empty candidate set is.
+//
+// Off the books there is nothing wider left to try, so the feedback simply
+// contradicts itself. On the official list the same emptiness has a second
+// explanation — a game whose answer was never on that list — and the two ask
+// different things of the player, so they get different errors.
+func (e *Engine) emptyErr(history []Turn, u Universe) error {
+	if u == Official && len(e.Filter(history, OffBook)) > 0 {
+		return ErrOffBookOnly
+	}
+	return ErrInconsistent
 }
 
 // validate rejects guesses the corpus does not contain, which would otherwise

@@ -75,7 +75,7 @@ func TestLetterOddsAfterAGreen(t *testing.T) {
 	e := testEngine(t)
 
 	history := []Turn{{Guess: "slate", Pattern: GetPattern("slate", "sword")}}
-	candidates := e.Filter(history)
+	candidates := e.Filter(history, Official)
 	if len(candidates) == 0 {
 		t.Fatal("no candidates survive, so there is nothing to measure")
 	}

@@ -33,6 +33,9 @@ func NewSolver(engine *solver.Engine) *Solver {
 type suggestRequest struct {
 	Mode    string        `json:"mode"`
 	History []turnRequest `json:"history"`
+	// OffBook widens the answer set from the official list to every legal
+	// guess, for games that do not draw their solution from that list.
+	OffBook bool `json:"offBook"`
 	// Limit is how many suggestions to return, defaulting to 5.
 	Limit int `json:"limit"`
 	// Beta is the temperature slider. Absent means the default.
@@ -58,7 +61,7 @@ func (s *Solver) Suggest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	opts, err := decodeOptions(req.Mode, req.Beta, req.Limit)
+	opts, err := decodeOptions(req.Mode, req.OffBook, req.Beta, req.Limit)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "bad_options", err)
 		return
@@ -89,6 +92,7 @@ type rateRequest struct {
 	// graded against what was known when it was played.
 	History []turnRequest `json:"history"`
 	Played  string        `json:"played"`
+	OffBook bool          `json:"offBook"`
 	Beta    *float64      `json:"beta"`
 }
 
@@ -114,7 +118,7 @@ func (s *Solver) Rate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	opts, err := decodeOptions(req.Mode, req.Beta, 1)
+	opts, err := decodeOptions(req.Mode, req.OffBook, req.Beta, 1)
 	if err != nil {
 		respondError(w, http.StatusBadRequest, "bad_options", err)
 		return
@@ -149,14 +153,22 @@ func (s *Solver) Rate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// writeSolverError maps engine failures onto status codes. An inconsistent
-// history is a coherent request about an impossible position, which is what
-// 422 is for, and it gets its own code because the UI should say "check the
+// writeSolverError maps engine failures onto status codes. A position no word
+// fits is a coherent request about an impossible one, which is what 422 is
+// for, and it carries its own code because the UI should say "check the
 // colours you entered" rather than showing a generic failure.
+//
+// The two dead ends are kept apart on the wire because they call for opposite
+// things: one says the colours are wrong, the other says they are right and
+// the answer list is not. Only the player knows which, so the UI has to be
+// able to ask.
 func writeSolverError(w http.ResponseWriter, err error) {
-	if errors.Is(err, solver.ErrInconsistent) {
+	switch {
+	case errors.Is(err, solver.ErrOffBookOnly):
+		respondError(w, http.StatusUnprocessableEntity, "off_book_answer", err)
+	case errors.Is(err, solver.ErrInconsistent):
 		respondError(w, http.StatusUnprocessableEntity, "inconsistent_history", err)
-		return
+	default:
+		respondError(w, http.StatusBadRequest, "bad_request", err)
 	}
-	respondError(w, http.StatusBadRequest, "bad_request", err)
 }

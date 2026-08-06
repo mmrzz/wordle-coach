@@ -92,3 +92,26 @@ func TestDecodeHistoryRejectsOverlongHistory(t *testing.T) {
 		t.Fatal("want an error past the history limit")
 	}
 }
+
+// The flag on the wire is the only way to reach the wider answer list, so its
+// absence has to leave the engine on the official one. A client that has never
+// heard of going off the books must not be able to end up there.
+func TestDecodeOptionsCarriesTheUniverse(t *testing.T) {
+	tests := []struct {
+		offBook bool
+		want    solver.Universe
+	}{
+		{false, solver.Official},
+		{true, solver.OffBook},
+	}
+
+	for _, tc := range tests {
+		opts, err := decodeOptions("easy", tc.offBook, nil, 5)
+		if err != nil {
+			t.Fatalf("decodeOptions(offBook=%v): %v", tc.offBook, err)
+		}
+		if opts.Universe != tc.want {
+			t.Errorf("offBook=%v gave universe %d, want %d", tc.offBook, opts.Universe, tc.want)
+		}
+	}
+}
