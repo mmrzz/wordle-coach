@@ -82,6 +82,9 @@ type Result struct {
 	// Remaining lists the candidates, but only when there are few enough to
 	// be worth showing, that is PossibleCount <= RemainingThreshold.
 	Remaining []string
+	// Letters is where each letter of the alphabet stands across the
+	// candidates, for a player who would rather work it out than be told.
+	Letters []LetterOdds
 }
 
 // Coach grades one played word against the position it was played from.
@@ -159,6 +162,9 @@ func (e *Engine) Suggest(history []Turn, opts Options) (Result, error) {
 		return Result{
 			PossibleCount: len(e.set.Answers),
 			Suggestions:   openers(opts.Limit),
+			// Cheap enough to compute even here: it is one pass over the
+			// answers, against the ~30M pattern evaluations the table saves.
+			Letters: letterOdds(e.set.Answers),
 		}, nil
 	}
 
@@ -173,6 +179,7 @@ func (e *Engine) Suggest(history []Turn, opts Options) (Result, error) {
 	result := Result{
 		PossibleCount: len(candidates),
 		Suggestions:   scored[:min(opts.Limit, len(scored))],
+		Letters:       letterOdds(candidates),
 	}
 	if len(candidates) <= RemainingThreshold {
 		result.Remaining = candidates

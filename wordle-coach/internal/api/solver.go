@@ -45,6 +45,9 @@ type suggestResponse struct {
 	Suggestions   []suggestionResponse `json:"suggestions"`
 	// Remaining is sent only when few enough answers are left to list.
 	Remaining []string `json:"remaining,omitempty"`
+	// Letters is all 26 in order, so the UI can group and sort them however
+	// it likes without having to know which ones were left out.
+	Letters []letterResponse `json:"letters"`
 }
 
 // Suggest returns the best next guesses given the feedback so far.
@@ -76,6 +79,7 @@ func (s *Solver) Suggest(w http.ResponseWriter, r *http.Request) {
 		PossibleCount: result.PossibleCount,
 		Suggestions:   toSuggestions(result.Suggestions),
 		Remaining:     result.Remaining,
+		Letters:       toLetters(result.Letters),
 	})
 }
 

@@ -42,6 +42,16 @@ type suggestionResponse struct {
 	InAnswerSet  bool    `json:"inAnswerSet"`
 }
 
+// letterResponse mirrors solver.LetterOdds. Odds travel as shares of one
+// rather than percentages, leaving the wording to the frontend.
+type letterResponse struct {
+	Letter   string  `json:"letter"`
+	Presence float64 `json:"presence"`
+	// Position counts from 0, and is -1 when the letter is ruled out.
+	Position     int     `json:"position"`
+	PositionOdds float64 `json:"positionOdds"`
+}
+
 // decodePattern converts the wire spelling into the engine's base-3 code, so
 // the solver never sees a string. Case is ignored; nothing else is.
 func decodePattern(s string) (solver.Pattern, error) {
@@ -147,6 +157,20 @@ func toSuggestions(in []solver.Suggestion) []suggestionResponse {
 			Bits:         round(s.Bits, 4),
 			ExpRemaining: round(s.ExpRemaining, 4),
 			InAnswerSet:  s.InAnswerSet,
+		}
+	}
+	return out
+}
+
+// toLetters converts the per-letter odds for the wire.
+func toLetters(in []solver.LetterOdds) []letterResponse {
+	out := make([]letterResponse, len(in))
+	for i, l := range in {
+		out[i] = letterResponse{
+			Letter:       l.Letter,
+			Presence:     round(l.Presence, 4),
+			Position:     l.Position,
+			PositionOdds: round(l.PositionOdds, 4),
 		}
 	}
 	return out
