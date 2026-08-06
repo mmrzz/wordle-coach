@@ -68,6 +68,10 @@ type Suggestion struct {
 	// InAnswerSet reports whether the word is itself still a candidate, so it
 	// could win outright this turn.
 	InAnswerSet bool
+	// Freq is the word's Zipf frequency, roughly 1 (rare) to 7 (common). It
+	// never competes with the score, only breaks ties among words that tell
+	// you exactly as much: those are not equally easy to think of.
+	Freq float64
 }
 
 // Result is the answer to a suggest request.
@@ -341,6 +345,7 @@ func (e *Engine) scorePool(pool, candidates []string, beta float64) []Suggestion
 					Bits:         bits,
 					ExpRemaining: expRemaining,
 					InAnswerSet:  isCandidate,
+					Freq:         e.set.Freq(guess),
 				}
 			}
 		}(lo, hi)
@@ -350,8 +355,14 @@ func (e *Engine) scorePool(pool, candidates []string, beta float64) []Suggestion
 	return out
 }
 
-// sortSuggestions ranks by information gained, breaking ties towards words
-// that could win this turn and then alphabetically, so results are stable.
+// sortSuggestions ranks by information gained. Ties fall first to words that
+// could win outright this turn, then to the more common word, then to the
+// alphabet so the order is total and results are stable.
+//
+// Popularity earns its place there because two guesses worth the same number
+// of bits are interchangeable to the engine and not at all to the player: a
+// tie between SOARE and AROSE should not hand them the one they have to be
+// told is a word.
 func sortSuggestions(s []Suggestion) {
 	sort.Slice(s, func(i, j int) bool {
 		if s[i].Bits != s[j].Bits {
@@ -359,6 +370,9 @@ func sortSuggestions(s []Suggestion) {
 		}
 		if s[i].InAnswerSet != s[j].InAnswerSet {
 			return s[i].InAnswerSet
+		}
+		if s[i].Freq != s[j].Freq {
+			return s[i].Freq > s[j].Freq
 		}
 		return s[i].Word < s[j].Word
 	})

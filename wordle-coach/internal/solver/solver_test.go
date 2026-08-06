@@ -187,6 +187,62 @@ func TestSuggestRejectsUnknownWords(t *testing.T) {
 	}
 }
 
+// Words that tell you the same amount are ordered by how common they are, so
+// the one the player has actually heard of comes first.
+func TestTiesBreakTowardsTheCommonerWord(t *testing.T) {
+	// Equal bits and both outside the answer set, so popularity is the only
+	// thing left to separate them.
+	scored := []Suggestion{
+		{Word: "aalii", Bits: 4.2, Freq: 1.1},
+		{Word: "later", Bits: 4.2, Freq: 5.3},
+		{Word: "zizel", Bits: 4.2, Freq: 1.0},
+	}
+	sortSuggestions(scored)
+
+	if scored[0].Word != "later" {
+		t.Errorf("best = %q, want %q: it is by far the commonest of the three", scored[0].Word, "later")
+	}
+	for i := 1; i < len(scored); i++ {
+		if scored[i-1].Freq < scored[i].Freq {
+			t.Errorf("order %v puts a rarer word ahead of a commoner one", words(scored))
+			break
+		}
+	}
+}
+
+// Popularity only ever breaks a tie: it must never lift a worse guess above a
+// better one, however famous the word.
+func TestPopularityNeverOutranksInformation(t *testing.T) {
+	scored := []Suggestion{
+		{Word: "about", Bits: 3.0, Freq: 6.0},
+		{Word: "aalii", Bits: 4.0, Freq: 1.0},
+	}
+	sortSuggestions(scored)
+
+	if scored[0].Word != "aalii" {
+		t.Errorf("best = %q, want the higher-scoring %q", scored[0].Word, "aalii")
+	}
+}
+
+// The tie-break is only worth anything if the engine actually knows how common
+// its words are.
+func TestScorePoolCarriesFrequency(t *testing.T) {
+	e := testEngine(t)
+
+	scored := e.scorePool([]string{"about", "aalii"}, e.set.Answers, DefaultBeta)
+	if scored[0].Freq <= scored[1].Freq {
+		t.Errorf("ABOUT (%g) should read as commoner than AALII (%g)", scored[0].Freq, scored[1].Freq)
+	}
+}
+
+func words(s []Suggestion) []string {
+	out := make([]string, len(s))
+	for i, x := range s {
+		out[i] = x.Word
+	}
+	return out
+}
+
 // The hard-mode pool only enforces greens and known yellows, which is looser
 // than full consistency, so it must contain every candidate.
 func TestHardPoolContainsEveryCandidate(t *testing.T) {
