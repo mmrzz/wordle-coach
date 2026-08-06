@@ -6,6 +6,7 @@ import {
 	FLIP_MS,
 	POP_MS,
 	ROW_REVEAL_MS,
+	ROW_SETTLE_MS,
 	TOAST_MS,
 	duration,
 } from "./anim";
@@ -168,7 +169,24 @@ export class Game {
 	}
 
 	get showingGhost(): boolean {
+		if (this.awaitingSuggestion) return false;
 		return this.typed === "" && !this.ghostDismissed && this.ghostWord !== "";
+	}
+
+	/**
+	 * True while the next suggestion is on its way and the row has nothing
+	 * honest to put in the meantime.
+	 *
+	 * The suggestions held here belong to the position before this one, so
+	 * showing them would be showing the answer to the previous question: the
+	 * player would read the last turn's word as advice about this turn. An
+	 * empty row is the truthful thing to show, and the wait is what the tiles
+	 * say instead.
+	 */
+	get awaitingSuggestion(): boolean {
+		if (this.phase === "loading") return true;
+		if (this.phase !== "typing") return false;
+		return this.thinking && this.typed === "" && !this.ghostDismissed;
 	}
 
 	/** The word Enter would submit, whether we suggested it or the player typed it. */
@@ -298,6 +316,9 @@ export class Game {
 	}
 
 	enter() {
+		// There is nothing to lock until the suggestion lands, and an empty row
+		// would otherwise be rejected for being empty.
+		if (this.awaitingSuggestion) return;
 		if (this.phase === "typing") return this.lock();
 		if (this.phase === "coloring") return void this.confirm();
 	}
@@ -531,7 +552,16 @@ export class Game {
 				return;
 			}
 
-			if (this.phase === "typing") this.scheduleRate();
+			if (this.phase === "typing") {
+				// The word lands the way a colour does, a tile at a time. Only
+				// worth it for a suggestion the player is actually waiting on:
+				// one arriving behind a word they have already typed should not
+				// turn the row over underneath them.
+				if (this.typed === "" && !this.ghostDismissed && this.suggestions.length > 0) {
+					this.startReveal(this.index, ROW_SETTLE_MS);
+				}
+				this.scheduleRate();
+			}
 		} catch (err) {
 			if (isAbort(err)) return;
 			if (err instanceof ApiError && err.code === "inconsistent_history") {
@@ -656,11 +686,15 @@ export class Game {
 		}, duration(POP_MS) + 80);
 	}
 
-	private startReveal(row: number) {
+	/**
+	 * Marks a row as turning over, for however long that takes. The colours
+	 * take the game's own dramatic pace; a suggestion landing takes less.
+	 */
+	private startReveal(row: number, ms: number = ROW_REVEAL_MS) {
 		this.revealingRow = row;
 		setTimeout(() => {
 			if (this.revealingRow === row) this.revealingRow = null;
-		}, duration(ROW_REVEAL_MS) + 50);
+		}, duration(ms) + 50);
 	}
 
 	private celebrate(row: number) {

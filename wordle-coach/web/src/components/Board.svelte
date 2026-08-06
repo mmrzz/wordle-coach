@@ -18,6 +18,7 @@
 				active={i === game.index && !game.over}
 				coloring={i === game.index && game.phase === "coloring"}
 				staggered={game.revealingRow === i}
+				loading={i === game.index && game.awaitingSuggestion}
 				bouncing={game.bouncingRow === i}
 				shakeNonce={game.shakeNonce}
 				pendingScore={i === game.index && game.phase === "typing" && game.thinking}

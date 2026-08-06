@@ -20,6 +20,8 @@
 		coloring?: boolean;
 		/** Staggers this row's tiles, set only for the reveal after Enter. */
 		staggered?: boolean;
+		/** True while this row is waiting for a suggestion to arrive. */
+		loading?: boolean;
 		bouncing?: boolean;
 		/** Changes to replay the rejection shake. */
 		shakeNonce?: number;
@@ -35,6 +37,7 @@
 		active = false,
 		coloring = false,
 		staggered = false,
+		loading = false,
 		bouncing = false,
 		shakeNonce = 0,
 		pendingScore = false,
@@ -86,6 +89,8 @@
 					ghost={row.ghost}
 					interactive={coloring}
 					flipDelay={staggered ? position * FLIP_STAGGER_MS : 0}
+					{loading}
+					arriving={staggered}
 					{position}
 					onclick={() => onTileClick?.(position)}
 				/>

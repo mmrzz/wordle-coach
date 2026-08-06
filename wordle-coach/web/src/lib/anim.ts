@@ -13,8 +13,30 @@ export const BOUNCE_MS = 1000;
 export const BOUNCE_STAGGER_MS = 100;
 export const TOAST_MS = 1600;
 
+/**
+ * The suggestion landing: the same turn as a colour change, taken briskly.
+ *
+ * A colour reveal is the drama of the game and is paced for it. A suggestion
+ * arriving is not — it is an answer to a question, and at the reveal's tempo
+ * the wait for it would be longer than the wait that caused it.
+ */
+export const SETTLE_MS = 260;
+export const SETTLE_STAGGER_MS = 60;
+
+/**
+ * How long the wait must last before it is worth admitting to.
+ *
+ * Most suggestions arrive well inside this, and a loading state that appears
+ * for a tenth of a second reads as a glitch rather than as progress.
+ */
+export const SHIMMER_DELAY_MS = 180;
+export const SHIMMER_STAGGER_MS = 60;
+
 /** How long a whole row takes to turn over, including the stagger. */
 export const ROW_REVEAL_MS = FLIP_MS + FLIP_STAGGER_MS * 4;
+
+/** The same, for the quicker turn a landing suggestion takes. */
+export const ROW_SETTLE_MS = SETTLE_MS + SETTLE_STAGGER_MS * 4;
 
 const query =
 	typeof matchMedia === "function"
