@@ -95,7 +95,7 @@ func load() (*Set, error) {
 		}
 	}
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("data: freq.tsv is missing %d word(s), e.g. %q: re-run frequecy_script/parse_words.py",
+		return nil, fmt.Errorf("data: freq.tsv is missing %d word(s), e.g. %q: regenerate it with the wordfreq script kept in git history",
 			len(missing), missing[0])
 	}
 
