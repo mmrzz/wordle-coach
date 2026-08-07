@@ -531,6 +531,13 @@ export class Game {
 
 		try {
 			const res = await suggest(this.history, this.options, SUGGESTION_COUNT, ctl.signal);
+			// The search is over from here on, and saying so before the results are
+			// applied is what lets the row show the suggestion: everything below
+			// reads the board through activeWord, which stays empty while a search
+			// is outstanding. Leaving it set would grade an empty row and leave the
+			// word that lands a moment later with no score beside it.
+			if (this.suggestCtl === ctl) this.thinking = false;
+
 			this.suggestions = res.suggestions;
 			this.possibleCount = res.possibleCount;
 			this.remaining = res.remaining ?? [];

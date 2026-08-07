@@ -142,6 +142,21 @@
 		z-index: 50;
 	}
 
+	/*
+	 * The knob shares the bottom left corner with Enter. It only gets away with
+	 * it while the keyboard, capped at 500px and centred, leaves the knob's own
+	 * width clear either side of it — below 624px of viewport the two overlap
+	 * and the knob takes the presses meant for Enter. Narrower than that it goes
+	 * above the keyboard instead, into the slack the stage leaves under the
+	 * board, where it is still clear of the board itself: the board is centred
+	 * and never comes within the aside width of the edge.
+	 */
+	@media (max-width: 640px) {
+		.dial {
+			bottom: calc(var(--keyboard-height) + 8px);
+		}
+	}
+
 	.knob {
 		display: flex;
 		align-items: center;
